@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Arabbika Trader | Smart Pricing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1115;
+      --surface: #1a1d24;
+      --text: #ffffff;
+      --muted: #8b92a5;
+      --accent: #00d26a; /* Vibrant money green */
+      --accent-hover: #00b359;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    main { max-width: 480px; margin: 0 auto; }
+
+    /* Header */
+    header { text-align: center; margin-bottom: 30px; padding-top: 20px; }
+    .logo { 
+      font-size: 24px; font-weight: 800; letter-spacing: -0.5px; 
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .logo span { color: var(--accent); }
+    header p { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+    /* The Form Card */
+    .card {
+      background: var(--surface);
+      padding: 24px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      color: var(--muted); letter-spacing: 1px; margin-bottom: 12px; margin-top: 20px;
+      display: block;
+    }
+    .section-label:first-of-type { margin-top: 0; }
+
+    .input-group { margin-bottom: 16px; }
+    .input-group label {
+      display: block; font-size: 13px; font-weight: 500;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    
+    .input-group input {
+      width: 100%; padding: 14px 16px;
+      background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+      border-radius: 12px; color: var(--text); font-size: 16px; font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .input-group input:focus { outline: none; border-color: var(--accent); background: rgba(0, 210, 106, 0.05); }
+    .input-group input::placeholder { color: #4a5266; }
+
+    /* Grid for side-by-side inputs */
+    .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    /* Primary Button */
+    button {
+      width: 100%; padding: 16px;
+      background: var(--accent); color: #000;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+      margin-top: 24px;
+    }
+    button:active { transform: scale(0.98); }
+    button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    /* Result Section */
+    .result-card {
+      display: none; background: var(--surface);
+      padding: 24px; border-radius: 20px;
+      margin-top: 20px; border: 1px solid var(--accent);
+      box-shadow: 0 10px 30px rgba(0, 210, 106, 0.1);
+      animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .price-label { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; text-align: center; }
+    .price-tag { font-size: 48px; font-weight: 800; color: var(--accent); text-align: center; margin: 8px 0; letter-spacing: -1px; }
+    .bulk-price { text-align: center; font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+    .bulk-price strong { color: var(--text); }
+
+    /* WhatsApp Flyer Preview */
+    .flyer-preview-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+    .wa-copy {
+      background: #000000; color: #e5e7eb;
+      padding: 20px; border-radius: 12px;
+      font-size: 14px; line-height: 1.6; white-space: pre-wrap;
+      font-family: inherit; border: 1px solid var(--border);
+    }
+
+    .copy-btn {
+      background: #25D366; color: white; margin-top: 16px;
+      display: flex; justify-content: center; align-items: center; gap: 8px;
+    }
+    .copy-btn:hover { background: #20bd5a; }
+
+    .glow { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 200px; height: 200px; background: var(--accent); filter: blur(100px); opacity: 0.1; z-index: -1; border-radius: 50%; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div class="glow"></div>
+  <main>
+    <header>
+      <div class="logo">Arabbika <span>Trader</span></div>
+      <p>The smart pricing engine for side hustles.</p>
+    </header>
+
+    <div class="card">
+      <span class="section-label">Product Details</span>
+      <div class="input-group">
+        <label>What are you selling?</label>
+        <input type="text" id="item-name" placeholder="e.g., Hair Extensions, Sneakers, Cakes">
+      </div>
+
+      <span class="section-label">Cost Breakdown</span>
+      <div class="input-group">
+        <label>Wholesale Cost per Unit (R)</label>
+        <input type="number" id="wholesale-cost" placeholder="e.g., 50">
+      </div>
+
+      <div class="input-grid">
+        <div class="input-group">
+          <label>Transport (per trip) (R)</label>
+          <input type="number" id="transport-trip" placeholder="e.g., 60">
+        </div>
+        <div class="input-group">
+          <label>Units per trip</label>
+          <input type="number" id="units-trip" placeholder="e.g., 10">
+        </div>
+      </div>
+
+      <div class="input-grid">
+        <div class="input-group">
+          <label>Data/Airtime weekly (R)</label>
+          <input type="number" id="data-week" placeholder="e.g., 50">
+        </div>
+        <div class="input-group">
+          <label>Sales per week</label>
+          <input type="number" id="sales-week" placeholder="e.g., 20">
+        </div>
+      </div>
+
+      <span class="section-label">Profit Target</span>
+      <div class="input-grid">
+        <div class="input-group">
+          <label>Shrinkage / Loss (%)</label>
+          <input type="number" id="shrinkage" placeholder="e.g., 5" value="5">
+        </div>
+        <div class="input-group">
+          <label>Target Margin (%)</label>
+          <input type="number" id="margin" placeholder="e.g., 50" value="50">
+        </div>
+      </div>
+      
+      <button id="calc-btn">Calculate & Generate Flyer</button>
+    </div>
+
+    <div id="result-box" class="result-card">
+      <div class="price-label">Recommended Selling Price</div>
+      <div id="res-selling-price" class="price-tag">R0.00</div>
+      <div class="bulk-price">Bulk Price (3+): <strong id="res-bulk-price">R0.00</strong> each</div>
+      
+      <div class="flyer-preview-label">Your Professional WhatsApp Flyer</div>
+      <div class="wa-copy" id="res-wa-message"></div>
+      
+      <button class="copy-btn" onclick="copyMessage()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        Copy for WhatsApp
+      </button>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('calc-btn').addEventListener('click', async () => {
+      const itemName = document.getElementById('item-name').value;
+      const wholesaleCost = document.getElementById('wholesale-cost').value;
+      const transportPerTrip = document.getElementById('transport-trip').value;
+      const unitsPerTrip = document.getElementById('units-trip').value;
+      const dataPerWeek = document.getElementById('data-week').value;
+      const weeklySales = document.getElementById('sales-week').value;
+      const shrinkage = document.getElementById('shrinkage').value;
+      const desiredMargin = document.getElementById('margin').value;
+
+      if(!itemName || !wholesaleCost) return alert('Please fill in the item name and wholesale cost.');
+
+      const btn = document.getElementById('calc-btn');
+      btn.disabled = true; btn.textContent = 'Calculating...';
+
+      try {
+        const res = await fetch('/api/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            itemName, wholesaleCost, transportPerTrip, unitsPerTrip, 
+            dataPerWeek, weeklySales, shrinkage, desiredMargin 
+          })
+        });
+        const data = await res.json();
+
+        document.getElementById('res-selling-price').textContent = `R${data.sellingPrice}`;
+        document.getElementById('res-bulk-price').textContent = `R${data.bulkPrice}`;
+        document.getElementById('res-wa-message').textContent = data.whatsappMessage;
+        
+        document.getElementById('result-box').style.display = 'block';
+        document.getElementById('result-box').scrollIntoView({ behavior: 'smooth', block: 'end' });
+      } catch (err) {
+        alert('Error calculating. Please try again.');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Calculate & Generate Flyer';
+      }
+    });
+
+    function copyMessage() {
+      const text = document.getElementById('res-wa-message').textContent;
+      navigator.clipboard.writeText(text);
+      
+      const btn = document.querySelector('.copy-btn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '✅ Copied!';
+      btn.style.background = '#1a1d24';
+      btn.style.color = '#00d26a';
+      
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = '#25D366';
+        btn.style.color = 'white';
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
