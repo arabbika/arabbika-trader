@@ -7,6 +7,7 @@ app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.static('public'));
 
+// Rate Limiter (Prevents abuse)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 50, 
@@ -14,6 +15,22 @@ const limiter = rateLimit({
 });
 app.use('/api/calculate', limiter);
 
+// --- 1. TRACKING & ANALYTICS ENDPOINT ---
+app.post('/api/event', (req, res) => {
+  const { event, userRef, metadata } = req.body;
+  
+  // Log to Render console (This is your pitch deck data!)
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    event: event,
+    userRef: userRef || 'organic',
+    metadata: metadata || {}
+  }));
+
+  res.status(200).json({ success: true });
+});
+
+// --- 2. CALCULATOR ENDPOINT ---
 app.post('/api/calculate', async (req, res) => {
   try {
     let { 
@@ -41,7 +58,7 @@ app.post('/api/calculate', async (req, res) => {
     if (desiredMargin >= 100) return res.status(400).json({ error: "Margin cannot be 100% or more." });
     if (shrinkage >= 90) shrinkage = 90;
 
-    // 🔴 FIX 3: Strict validation. Don't default to 1 if a cost is provided.
+    // Strict validation for Transport and Data costs
     if (transportPerTrip > 0 && unitsPerTrip <= 0) {
       return res.status(400).json({ error: "Please enter the number of units per trip to calculate transport cost." });
     }
@@ -49,10 +66,10 @@ app.post('/api/calculate', async (req, res) => {
       return res.status(400).json({ error: "Please enter sales per week to calculate data cost." });
     }
 
-    // Fallbacks to prevent divide by zero
     const validUnits = unitsPerTrip > 0 ? unitsPerTrip : 1;
     const validSales = weeklySales > 0 ? weeklySales : 1;
 
+    // Core Math
     const transportPerUnit = transportPerTrip / validUnits;
     const dataPerUnit = dataPerWeek / validSales;
     const baseCost = wholesaleCost + transportPerUnit + dataPerUnit;
@@ -66,10 +83,10 @@ app.post('/api/calculate', async (req, res) => {
     let bulkPrice = sellingPrice * 0.9;
     if (bulkPrice < trueCost) bulkPrice = Math.min(trueCost * 1.05, sellingPrice);
 
+    // Profit Leak Alerts
     let alertMessage = "";
     let alertType = "none"; 
 
-    // 🔴 FIX 2: Real weekly volume math
     if (currentPrice > 0) {
       const tolerance = sellingPrice * 0.03;
       const thresholdForUnderTarget = sellingPrice - tolerance;
@@ -100,9 +117,10 @@ app.post('/api/calculate', async (req, res) => {
     });
 
   } catch (err) {
+    console.error('Calculation Error:', err);
     res.status(500).json({ error: 'Calculation failed.' });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Trader App running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
