@@ -1,39 +1,44 @@
-// --- 1. INITIALIZATION & REFERRAL TRACKING ---
-let userRef = localStorage.getItem('arabbika_ref');
-if (!userRef) {
-  // Generate a short random ID for this user (e.g., "tr-8f9a2")
-  userRef = 'tr-' + Math.random().toString(36).substring(2, 7);
-  localStorage.setItem('arabbika_ref', userRef);
-}
+// --- 1. IDENTITY & ATTRIBUTION ---
+let userRef = localStorage.getItem('arabbika_user_id');
+let referredBy = localStorage.getItem('arabbika_referred_by');
 
-// Check if they arrived via someone else's link
+// Check URL for a referral link
 const urlParams = new URLSearchParams(window.location.search);
 const incomingRef = urlParams.get('ref');
-if (incomingRef && incomingRef !== userRef) {
-  // They were referred by someone else!
-  track('visit_from_referral', incomingRef);
+
+if (!userRef) {
+  // Brand new user. Generate ID and check if they were referred.
+  userRef = 'usr-' + Math.random().toString(36).substring(2, 8);
+  localStorage.setItem('arabbika_user_id', userRef);
+  
+  if (incomingRef) {
+    localStorage.setItem('arabbika_referred_by', incomingRef);
+    referredBy = incomingRef;
+  }
+  track('new_user', { referredBy: referredBy || 'organic' });
 } else {
-  track('visit_organic', userRef);
+  // Returning user
+  track('return_visit', { referredBy: referredBy || 'organic' });
 }
 
-// Core tracking function
-function track(eventName, refCode = userRef, meta = {}) {
+// --- 2. CORE TRACKING FUNCTION ---
+// Strictly sends numbers and metadata, NO free-text strings that could contain PII.
+function track(eventName, meta = {}) {
+  // Safety cap: Don't send more than 5 properties to avoid log bloat
+  const safeMeta = Object.fromEntries(Object.entries(meta).slice(0, 5)); 
+  
   fetch('/api/event', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event: eventName, userRef: refCode, metadata: meta })
-  }).catch(() => {}); // Fail silently so it doesn't break the app
+    body: JSON.stringify({ 
+      event: eventName, 
+      userRef: userRef,
+      metadata: safeMeta
+    })
+  }).catch(() => {});
 }
 
-// Update the watermark with their unique referral link
-document.addEventListener('DOMContentLoaded', () => {
-  const watermark = document.getElementById('flyer-watermark');
-  if (watermark) {
-    watermark.textContent = `Priced with Arabbika Trader | arabbika-trader.onrender.com?ref=${userRef}`;
-  }
-});
-
-// --- 2. STATE & STORAGE ---
+// --- 3. STATE & STORAGE ---
 let products = [];
 try {
   const stored = localStorage.getItem('arabbika_products');
@@ -54,7 +59,7 @@ function saveProducts() {
   localStorage.setItem('arabbika_products', JSON.stringify(products));
 }
 
-// --- 3. NAVIGATION ---
+// --- 4. NAVIGATION ---
 function switchTab(tab) {
   if (tab === 'dashboard') {
     currentEditingId = null; 
@@ -76,7 +81,7 @@ function switchTab(tab) {
   }
 }
 
-// --- 4. DASHBOARD & SALES LOG ---
+// --- 5. DASHBOARD & SALES LOG ---
 function renderDashboard() {
   const list = document.getElementById('products-list');
   const empty = document.getElementById('empty-state');
@@ -116,8 +121,8 @@ function logSale(id) {
     product.sold = (product.sold || 0) + 1;
     saveProducts();
     renderDashboard();
-    // Track the sale!
-    track('sale_logged', userRef, { productName: product.name, profit: product.sellingPrice - product.trueCost });
+    // Log only the profit number, not the product name
+    track('sale_logged', { profit: Number((product.sellingPrice - product.trueCost).toFixed(2)) });
   }
 }
 
@@ -129,7 +134,7 @@ function deleteProduct(id) {
   }
 }
 
-// --- 5. CALCULATOR & EDIT FLOW ---
+// --- 6. CALCULATOR & EDIT FLOW ---
 function loadProductForEdit(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
@@ -165,7 +170,7 @@ function resetCalculatorForm() {
   document.getElementById('result-section').classList.add('hidden');
 }
 
-// --- 6. CALCULATE LOGIC ---
+// --- 7. CALCULATE LOGIC ---
 document.getElementById('calc-btn').addEventListener('click', async () => {
   const name = document.getElementById('item-name').value;
   const wholesale = document.getElementById('wholesale-cost').value;
@@ -217,8 +222,8 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
     document.getElementById('result-section').classList.remove('hidden');
     document.getElementById('result-section').scrollIntoView({ behavior: 'smooth' });
 
-    // Track calculation event
-    track('price_calculated', userRef, { item: name, margin: inputs.desiredMargin });
+    // Track calculation (log margin and alert type, no names)
+    track('price_calculated', { margin: Number(inputs.desiredMargin), alert: data.alertType });
 
   } catch (err) {
     alert(err.message);
@@ -227,7 +232,7 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
   }
 });
 
-// --- 7. SAVE PRODUCT ---
+// --- 8. SAVE PRODUCT ---
 document.getElementById('save-btn').addEventListener('click', () => {
   if (!currentCalculation) return;
   
@@ -252,8 +257,8 @@ document.getElementById('save-btn').addEventListener('click', () => {
       sold: 0,
       inputs: currentCalculation.inputs
     });
-    // Track new product added
-    track('product_saved', userRef, { item: currentCalculation.inputs.itemName });
+    // Track product saved (log selling price, no names)
+    track('product_saved', { price: currentCalculation.result.sellingPrice });
   }
 
   saveProducts();
@@ -261,7 +266,7 @@ document.getElementById('save-btn').addEventListener('click', () => {
   switchTab('dashboard');
 });
 
-// --- 8. SHARE LOGIC ---
+// --- 9. SHARE LOGIC (Fixed) ---
 async function shareFlyerImage(btnElement) {
   const flyerTarget = document.getElementById('flyer-canvas-target');
   const originalText = btnElement.textContent;
@@ -273,22 +278,31 @@ async function shareFlyerImage(btnElement) {
     
     canvas.toBlob(async (blob) => {
       const file = new File([blob], 'flyer.png', { type: 'image/png' });
-      
-      // Track the share event!
-      track('flyer_shared', userRef, { item: document.getElementById('flyer-item-name').textContent });
+      const shareText = `Check out my latest stock! Priced with Arabbika Trader: https://arabbika-trader.onrender.com?ref=${userRef}`;
+
+      let sharedSuccessfully = false;
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: 'My Flyer' });
+          await navigator.share({ files: [file], title: 'My Flyer', text: shareText });
+          sharedSuccessfully = true;
         } catch (e) {
-          console.log('Share cancelled');
+          console.log('User cancelled share');
         }
       } else {
+        // Fallback download
         const link = document.createElement('a');
         link.download = 'arabbika-flyer.png';
         link.href = canvas.toDataURL();
         link.click();
+        sharedSuccessfully = true;
       }
+
+      // Only track if it actually succeeded
+      if (sharedSuccessfully) {
+        track('flyer_shared', { price: currentCalculation ? currentCalculation.result.sellingPrice : 0 });
+      }
+
       btnElement.textContent = originalText;
       btnElement.disabled = false;
     });
