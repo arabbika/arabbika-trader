@@ -90,7 +90,7 @@
       <div class="input-grid">
         <div class="input-group">
           <label>Shrinkage / Loss (%)</label>
-          <input type="number" id="shrinkage" placeholder="e.g., 5" value="5" min="0" max="99">
+          <input type="number" id="shrinkage" placeholder="e.g., 5" value="5" min="0" max="90">
         </div>
         <div class="input-group">
           <label>Target Margin (%)</label>
@@ -203,7 +203,6 @@
         else if(theme === 'festive') titleEl.textContent = "🎄 FESTIVE SPECIAL 🎄";
         else titleEl.textContent = "✦ PREMIUM STOCK ✦";
 
-        // 🔴 FIX: Handle separate Loss vs Under Target alerts
         const alertBox = document.getElementById('alert-box');
         const alertText = document.getElementById('alert-text');
         
