@@ -1,31 +1,42 @@
-// --- 1. IDENTITY & ATTRIBUTION ---
-let userRef = localStorage.getItem('arabbika_user_id');
-let referredBy = localStorage.getItem('arabbika_referred_by');
+// --- 1. SAFE STORAGE HELPERS ---
+// 🔴 FIX: Wrap storage in try/catch so private mode doesn't crash the app
+const safeStorage = {
+  get: (key) => {
+    try { return localStorage.getItem(key); } catch { return null; }
+  },
+  set: (key, val) => {
+    try { localStorage.setItem(key, val); } catch { /* fail silently */ }
+  }
+};
 
-// Check URL for a referral link
+// --- 2. IDENTITY & ATTRIBUTION ---
+let userRef = safeStorage.get('arabbika_user_id');
+let referredBy = safeStorage.get('arabbika_referred_by');
+
 const urlParams = new URLSearchParams(window.location.search);
-const incomingRef = urlParams.get('ref');
+let incomingRef = urlParams.get('ref');
+
+// 🔴 FIX: Sanitize referral code (keep only alphanumerics, -, _, max 16 chars)
+if (incomingRef) {
+  incomingRef = incomingRef.replace(/[^a-zA-Z0-9\-_]/g, '').substring(0, 16);
+}
 
 if (!userRef) {
-  // Brand new user. Generate ID and check if they were referred.
   userRef = 'usr-' + Math.random().toString(36).substring(2, 8);
-  localStorage.setItem('arabbika_user_id', userRef);
+  safeStorage.set('arabbika_user_id', userRef);
   
   if (incomingRef) {
-    localStorage.setItem('arabbika_referred_by', incomingRef);
+    safeStorage.set('arabbika_referred_by', incomingRef);
     referredBy = incomingRef;
   }
   track('new_user', { referredBy: referredBy || 'organic' });
 } else {
-  // Returning user
   track('return_visit', { referredBy: referredBy || 'organic' });
 }
 
-// --- 2. CORE TRACKING FUNCTION ---
-// Strictly sends numbers and metadata, NO free-text strings that could contain PII.
+// --- 3. CORE TRACKING FUNCTION ---
 function track(eventName, meta = {}) {
-  // Safety cap: Don't send more than 5 properties to avoid log bloat
-  const safeMeta = Object.fromEntries(Object.entries(meta).slice(0, 5)); 
+  const safeMeta = Object.fromEntries(Object.entries(meta).slice(0, 4)); 
   
   fetch('/api/event', {
     method: 'POST',
@@ -38,10 +49,10 @@ function track(eventName, meta = {}) {
   }).catch(() => {});
 }
 
-// --- 3. STATE & STORAGE ---
+// --- 4. STATE & STORAGE ---
 let products = [];
 try {
-  const stored = localStorage.getItem('arabbika_products');
+  const stored = safeStorage.get('arabbika_products');
   products = stored ? JSON.parse(stored) : [];
   if (!Array.isArray(products)) products = [];
 } catch (e) {
@@ -56,10 +67,10 @@ function escapeHTML(str) {
 }
 
 function saveProducts() {
-  localStorage.setItem('arabbika_products', JSON.stringify(products));
+  safeStorage.set('arabbika_products', JSON.stringify(products));
 }
 
-// --- 4. NAVIGATION ---
+// --- 5. NAVIGATION ---
 function switchTab(tab) {
   if (tab === 'dashboard') {
     currentEditingId = null; 
@@ -81,7 +92,7 @@ function switchTab(tab) {
   }
 }
 
-// --- 5. DASHBOARD & SALES LOG ---
+// --- 6. DASHBOARD & SALES LOG ---
 function renderDashboard() {
   const list = document.getElementById('products-list');
   const empty = document.getElementById('empty-state');
@@ -121,7 +132,6 @@ function logSale(id) {
     product.sold = (product.sold || 0) + 1;
     saveProducts();
     renderDashboard();
-    // Log only the profit number, not the product name
     track('sale_logged', { profit: Number((product.sellingPrice - product.trueCost).toFixed(2)) });
   }
 }
@@ -134,7 +144,7 @@ function deleteProduct(id) {
   }
 }
 
-// --- 6. CALCULATOR & EDIT FLOW ---
+// --- 7. CALCULATOR & EDIT FLOW ---
 function loadProductForEdit(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
@@ -170,7 +180,6 @@ function resetCalculatorForm() {
   document.getElementById('result-section').classList.add('hidden');
 }
 
-// --- 7. CALCULATE LOGIC ---
 document.getElementById('calc-btn').addEventListener('click', async () => {
   const name = document.getElementById('item-name').value;
   const wholesale = document.getElementById('wholesale-cost').value;
@@ -222,7 +231,6 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
     document.getElementById('result-section').classList.remove('hidden');
     document.getElementById('result-section').scrollIntoView({ behavior: 'smooth' });
 
-    // Track calculation (log margin and alert type, no names)
     track('price_calculated', { margin: Number(inputs.desiredMargin), alert: data.alertType });
 
   } catch (err) {
@@ -232,7 +240,7 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
   }
 });
 
-// --- 8. SAVE PRODUCT ---
+// --- 8. SAVE/UPDATE PRODUCT ---
 document.getElementById('save-btn').addEventListener('click', () => {
   if (!currentCalculation) return;
   
@@ -246,6 +254,8 @@ document.getElementById('save-btn').addEventListener('click', () => {
         trueCost: currentCalculation.result.trueCost,
         inputs: currentCalculation.inputs
       };
+      // 🔴 FIX: Track product updated
+      track('product_updated', { price: currentCalculation.result.sellingPrice });
     }
     currentEditingId = null;
   } else {
@@ -257,7 +267,6 @@ document.getElementById('save-btn').addEventListener('click', () => {
       sold: 0,
       inputs: currentCalculation.inputs
     });
-    // Track product saved (log selling price, no names)
     track('product_saved', { price: currentCalculation.result.sellingPrice });
   }
 
@@ -266,7 +275,7 @@ document.getElementById('save-btn').addEventListener('click', () => {
   switchTab('dashboard');
 });
 
-// --- 9. SHARE LOGIC (Fixed) ---
+// --- 9. SHARE LOGIC ---
 async function shareFlyerImage(btnElement) {
   const flyerTarget = document.getElementById('flyer-canvas-target');
   const originalText = btnElement.textContent;
@@ -295,10 +304,11 @@ async function shareFlyerImage(btnElement) {
         link.download = 'arabbika-flyer.png';
         link.href = canvas.toDataURL();
         link.click();
+        // 🔴 FIX: Alert on desktop download
+        alert('Flyer downloaded! You can now post it to WhatsApp or Facebook.');
         sharedSuccessfully = true;
       }
 
-      // Only track if it actually succeeded
       if (sharedSuccessfully) {
         track('flyer_shared', { price: currentCalculation ? currentCalculation.result.sellingPrice : 0 });
       }
@@ -313,5 +323,4 @@ async function shareFlyerImage(btnElement) {
   }
 }
 
-// Initialize
 renderDashboard();
