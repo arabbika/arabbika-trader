@@ -3,16 +3,15 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
-// 🔴 CRITICAL FIX: Trust the Render proxy so the rate limiter works per-user, not globally
+// Trust the Render proxy for accurate rate-limiting per user
 app.set('trust proxy', 1);
 
 app.use(express.json());
 app.use(express.static('public'));
 
-// 🛡️ Rate Limiter
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 30, // Increased slightly, but safe
+  max: 30, 
   message: { error: "Too many calculations. Please try again in 15 minutes." }
 });
 app.use('/api/calculate', limiter);
@@ -24,31 +23,34 @@ app.post('/api/calculate', async (req, res) => {
       dataPerWeek, weeklySales, shrinkage, desiredMargin, currentPrice, weeklyVolume, theme 
     } = req.body;
 
-    // 🛡️ Input Validation (Prevent NaN and negative values)
+    // 🔴 FIX 1: Bulletproof input parsing
     const parseNum = (val, defaultVal = 0) => {
+      if (val === undefined || val === null || val === "") return defaultVal;
       const num = Number(val);
       return (isNaN(num) || num < 0) ? defaultVal : num;
     };
 
     wholesaleCost = parseNum(wholesaleCost);
     transportPerTrip = parseNum(transportPerTrip);
-    unitsPerTrip = parseNum(unitsPerTrip, 1);
+    unitsPerTrip = parseNum(unitsPerTrip, 1); // Defaults to 1 if empty
     dataPerWeek = parseNum(dataPerWeek);
-    weeklySales = parseNum(weeklySales, 1);
+    weeklySales = parseNum(weeklySales, 1); // Defaults to 1 if empty
     shrinkage = parseNum(shrinkage);
     desiredMargin = parseNum(desiredMargin);
     currentPrice = parseNum(currentPrice);
-    weeklyVolume = parseNum(weeklyVolume, 1); // Default to 1 if empty to avoid huge errors
+    weeklyVolume = parseNum(weeklyVolume, 1); // Defaults to 1 if empty
 
+    // 🔴 FIX 2: Validate and Cap inputs
     if (wholesaleCost <= 0) return res.status(400).json({ error: "Wholesale cost must be greater than 0." });
     if (desiredMargin >= 100) return res.status(400).json({ error: "Margin cannot be 100% or more." });
+    if (shrinkage >= 90) shrinkage = 90; // Cap shrinkage at 90% to prevent divide-by-zero or infinite loops
 
     // 1. Math: Real Cost Model
     const transportPerUnit = transportPerTrip / unitsPerTrip;
     const dataPerUnit = dataPerWeek / weeklySales;
     const baseCost = wholesaleCost + transportPerUnit + dataPerUnit;
     
-    // 🔴 FIX: Correct shrinkage formula (Divide by remaining units, not multiply)
+    // Correct shrinkage formula
     const shrinkDecimal = shrinkage / 100;
     const totalCostWithLoss = baseCost / (1 - shrinkDecimal);
     
@@ -56,32 +58,34 @@ app.post('/api/calculate', async (req, res) => {
     const marginDecimal = desiredMargin / 100;
     const sellingPrice = totalCostWithLoss / (1 - marginDecimal);
     
-    // 🔴 FIX: Bulk Price should never drop below true cost
+    // 🔴 FIX 3: Bulk price logic
     let bulkPrice = sellingPrice * 0.9;
-    if (bulkPrice < totalCostWithLoss) bulkPrice = totalCostWithLoss * 1.05; // Ensure at least 5% profit on bulk
+    // Ensure bulk price doesn't drop below cost AND doesn't exceed single price
+    if (bulkPrice < totalCostWithLoss) {
+      bulkPrice = Math.min(totalCostWithLoss * 1.05, sellingPrice); 
+    }
 
     // 3. Profit Leak / Target Warning Calculator
     let alertMessage = "";
-    let alertType = "none"; // 'loss', 'under_target', or 'none'
+    let alertType = "none"; 
 
     if (currentPrice > 0) {
+      // 🔴 FIX 4: 3% Tolerance to prevent rounding false-positives
+      const tolerance = sellingPrice * 0.03;
+      const thresholdForUnderTarget = sellingPrice - tolerance;
+
       if (currentPrice < totalCostWithLoss) {
-        // They are actually losing money
         const lostPerUnit = totalCostWithLoss - currentPrice;
         const weeklyLoss = lostPerUnit * weeklyVolume;
         alertMessage = `CRITICAL LOSS: At R${currentPrice.toFixed(2)}, you are paying R${lostPerUnit.toFixed(2)} out of your own pocket per item. You are losing R${weeklyLoss.toFixed(2)} every week.`;
         alertType = "loss";
-      } else if (currentPrice < sellingPrice) {
-        // They are profitable, but missing their target
+      } else if (currentPrice < thresholdForUnderTarget) {
         const missedPerUnit = sellingPrice - currentPrice;
         const weeklyMissed = missedPerUnit * weeklyVolume;
         alertMessage = `UNDER TARGET: You are making a profit, but you are leaving R${missedPerUnit.toFixed(2)} on the table per item. That's R${weeklyMissed.toFixed(2)} missed every week.`;
         alertType = "under_target";
       }
     }
-
-    // 🔴 FIX: We removed the AI call here. The frontend builds the flyer visually, 
-    // so we don't need to pay xAI to generate text that is hidden from the user.
     
     res.json({ 
       sellingPrice: sellingPrice.toFixed(2),
