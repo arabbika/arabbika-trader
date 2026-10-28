@@ -7,8 +7,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   
-  <!-- PWA Manifest -->
-  <link rel="manifest" href='data:application/manifest+json,{"name":"Arabbika Trader","short_name":"Trader","start_url":"/","display":"standalone","background_color":"#0f1115","theme_color":"#00d26a"}'>
+  <!-- 🔴 FIX 5: Real manifest link for PWA -->
+  <link rel="manifest" href="/manifest.json">
   
   <style>
     :root {
@@ -20,20 +20,17 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
     
-    /* Layout */
     header { text-align: center; padding: 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
     .logo { font-size: 20px; font-weight: 800; }
     .logo span { color: var(--accent); }
     
     main { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; max-width: 600px; margin: 0 auto; width: 100%; }
     
-    /* Bottom Nav */
     .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--surface); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 12px 0; max-width: 600px; left: 50%; transform: translateX(-50%); }
     .nav-item { color: var(--muted); font-size: 12px; font-weight: 600; text-align: center; cursor: pointer; transition: color 0.2s; }
     .nav-item.active { color: var(--accent); }
     .nav-icon { font-size: 20px; margin-bottom: 4px; }
 
-    /* Cards & Forms */
     .card { background: var(--surface); padding: 20px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 16px; }
     .input-group { margin-bottom: 12px; }
     label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
@@ -41,22 +38,18 @@
     input:focus, select:focus { outline: none; border-color: var(--accent); }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     
-    /* Buttons */
     button { width: 100%; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; border: none; transition: transform 0.1s; }
     button:active { transform: scale(0.98); }
     .btn-primary { background: var(--accent); color: #000; }
     .btn-secondary { background: rgba(255,255,255,0.1); color: var(--text); }
     .btn-danger { background: rgba(255, 71, 87, 0.1); color: var(--danger); border: 1px solid var(--danger); }
     
-    /* Alert Box */
     #alert-box { padding: 12px; border-radius: 10px; margin-bottom: 16px; display: none; font-size: 13px; font-weight: 600; text-align: center; }
     .alert-loss { background: rgba(255, 71, 87, 0.1); color: var(--danger); border: 1px solid var(--danger); }
     .alert-target { background: rgba(250, 204, 21, 0.1); color: var(--warning); border: 1px solid var(--warning); }
     
-    /* Flyer Canvas */
     #flyer-canvas-target { background: #111; padding: 20px; border-radius: 12px; margin-bottom: 16px; text-align: center; border: 2px solid var(--accent); }
     
-    /* Dashboard List */
     .product-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border); }
     .product-info h3 { font-size: 16px; margin-bottom: 4px; }
     .product-info p { font-size: 12px; color: var(--muted); }
@@ -73,9 +66,7 @@
     <!-- VIEW: DASHBOARD (MY PRODUCTS) -->
     <div id="view-dashboard">
       <h2 style="font-size: 18px; margin-bottom: 16px;">My Products</h2>
-      <div id="products-list">
-        <!-- Products injected here -->
-      </div>
+      <div id="products-list"></div>
       <div id="empty-state" style="text-align: center; margin-top: 40px; color: var(--muted);">
         <p style="font-size: 40px; margin-bottom: 10px;">📦</p>
         <p>No products saved yet.</p>
@@ -101,7 +92,7 @@
           </div>
           <div class="input-group">
             <label>Units / Trip</label>
-            <input type="number" id="units-trip" min="1" value="1">
+            <input type="number" id="units-trip" min="1" placeholder="Optional">
           </div>
         </div>
         <div class="grid-2">
@@ -111,7 +102,7 @@
           </div>
           <div class="input-group">
             <label>Sales / Week</label>
-            <input type="number" id="sales-week" min="1" value="1">
+            <input type="number" id="sales-week" min="1" placeholder="Optional">
           </div>
         </div>
         <div class="grid-2">
@@ -148,16 +139,17 @@
             </div>
             <p id="flyer-bulk-price" style="color: #00d26a; font-size: 13px; font-weight: 600;">Bulk: R0.00</p>
             <p style="color: #888; font-size: 12px; margin-top: 15px;">DM to order 📍</p>
+            <!-- 🔴 FIX 4: Restored Watermark -->
+            <p style="color: #555; font-size: 10px; margin-top: 10px;">Priced with Arabbika Trader | arabbika-trader.onrender.com</p>
           </div>
           
-          <button onclick="shareFlyerImage()" class="btn-primary" style="background: #25D366; color: white; margin-bottom: 10px;">Share to WhatsApp</button>
+          <button onclick="shareFlyerImage(this)" class="btn-primary" style="background: #25D366; color: white; margin-bottom: 10px;">Share to WhatsApp</button>
           <button id="save-btn" class="btn-secondary">Save Product to List</button>
         </div>
       </div>
     </div>
   </main>
 
-  <!-- BOTTOM NAVIGATION -->
   <div class="bottom-nav">
     <div class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">
       <div class="nav-icon">📦</div>
