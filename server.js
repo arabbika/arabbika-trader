@@ -4,22 +4,35 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.set('trust proxy', 1);
-app.use(express.json());
+app.use(express.json({ limit: '1kb' })); // Limit body size to prevent log spam
 app.use(express.static('public'));
 
-// Rate Limiter (Prevents abuse)
-const limiter = rateLimit({
+// Rate Limiter for Calculations
+const calcLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 50, 
   message: { error: "Too many calculations. Please try again in 15 minutes." }
 });
-app.use('/api/calculate', limiter);
+app.use('/api/calculate', calcLimiter);
 
-// --- 1. TRACKING & ANALYTICS ENDPOINT ---
-app.post('/api/event', (req, res) => {
+// Rate Limiter for Analytics (Prevent log flooding)
+const eventLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100, // Max 100 events per 15 mins per IP
+  message: { error: "Too many events." }
+});
+
+const ALLOWED_EVENTS = ['new_user', 'return_visit', 'price_calculated', 'product_saved', 'sale_logged', 'flyer_shared'];
+
+app.post('/api/event', eventLimiter, (req, res) => {
   const { event, userRef, metadata } = req.body;
   
-  // Log to Render console (This is your pitch deck data!)
+  // Validate event name against allowlist
+  if (!ALLOWED_EVENTS.includes(event)) {
+    return res.status(400).json({ error: 'Invalid event type.' });
+  }
+
+  // Log to Render console
   console.log(JSON.stringify({
     timestamp: new Date().toISOString(),
     event: event,
@@ -30,7 +43,7 @@ app.post('/api/event', (req, res) => {
   res.status(200).json({ success: true });
 });
 
-// --- 2. CALCULATOR ENDPOINT ---
+// --- CALCULATOR ENDPOINT ---
 app.post('/api/calculate', async (req, res) => {
   try {
     let { 
@@ -58,18 +71,16 @@ app.post('/api/calculate', async (req, res) => {
     if (desiredMargin >= 100) return res.status(400).json({ error: "Margin cannot be 100% or more." });
     if (shrinkage >= 90) shrinkage = 90;
 
-    // Strict validation for Transport and Data costs
     if (transportPerTrip > 0 && unitsPerTrip <= 0) {
-      return res.status(400).json({ error: "Please enter the number of units per trip to calculate transport cost." });
+      return res.status(400).json({ error: "Please enter the number of units per trip." });
     }
     if (dataPerWeek > 0 && weeklySales <= 0) {
-      return res.status(400).json({ error: "Please enter sales per week to calculate data cost." });
+      return res.status(400).json({ error: "Please enter sales per week." });
     }
 
     const validUnits = unitsPerTrip > 0 ? unitsPerTrip : 1;
     const validSales = weeklySales > 0 ? weeklySales : 1;
 
-    // Core Math
     const transportPerUnit = transportPerTrip / validUnits;
     const dataPerUnit = dataPerWeek / validSales;
     const baseCost = wholesaleCost + transportPerUnit + dataPerUnit;
@@ -83,7 +94,6 @@ app.post('/api/calculate', async (req, res) => {
     let bulkPrice = sellingPrice * 0.9;
     if (bulkPrice < trueCost) bulkPrice = Math.min(trueCost * 1.05, sellingPrice);
 
-    // Profit Leak Alerts
     let alertMessage = "";
     let alertType = "none"; 
 
