@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <!-- 🔴 FIX: Removed user-scalable=no -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Arabbika Trader</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   
-  <!-- 🔴 FIX 5: Real manifest link for PWA -->
+  <!-- 🔴 FIX: Real manifest link -->
   <link rel="manifest" href="/manifest.json">
   
   <style>
@@ -20,7 +21,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
     
-    header { text-align: center; padding: 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
+    header { text-align: center; padding: 20px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .header-icon { width: 28px; height: 28px; }
     .logo { font-size: 20px; font-weight: 800; }
     .logo span { color: var(--accent); }
     
@@ -59,6 +61,8 @@
 </head>
 <body>
   <header>
+    <!-- 🔴 Icon added here -->
+    <img src="/icon.png" alt="Icon" class="header-icon">
     <div class="logo">Arabbika <span>Trader</span></div>
   </header>
 
@@ -92,7 +96,7 @@
           </div>
           <div class="input-group">
             <label>Units / Trip</label>
-            <input type="number" id="units-trip" min="1" placeholder="Optional">
+            <input type="number" id="units-trip" min="1" placeholder="Required if transport > 0">
           </div>
         </div>
         <div class="grid-2">
@@ -102,7 +106,7 @@
           </div>
           <div class="input-group">
             <label>Sales / Week</label>
-            <input type="number" id="sales-week" min="1" placeholder="Optional">
+            <input type="number" id="sales-week" min="1" placeholder="Required if data > 0">
           </div>
         </div>
         <div class="grid-2">
@@ -118,6 +122,10 @@
         <div class="input-group" style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
           <label>Current Selling Price (Optional)</label>
           <input type="number" id="current-price" min="0" placeholder="Check for profit leaks">
+        </div>
+        <div class="input-group">
+          <label>Weekly Volume (Optional - for loss calculations)</label>
+          <input type="number" id="weekly-volume" min="1" placeholder="e.g., 10">
         </div>
         
         <button id="calc-btn" class="btn-primary" style="margin-top: 10px;">Calculate Price</button>
@@ -139,7 +147,7 @@
             </div>
             <p id="flyer-bulk-price" style="color: #00d26a; font-size: 13px; font-weight: 600;">Bulk: R0.00</p>
             <p style="color: #888; font-size: 12px; margin-top: 15px;">DM to order 📍</p>
-            <!-- 🔴 FIX 4: Restored Watermark -->
+            <!-- Watermark with referral tracking placeholder -->
             <p style="color: #555; font-size: 10px; margin-top: 10px;">Priced with Arabbika Trader | arabbika-trader.onrender.com</p>
           </div>
           
