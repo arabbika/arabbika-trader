@@ -1,3 +1,39 @@
+// --- 1. INITIALIZATION & REFERRAL TRACKING ---
+let userRef = localStorage.getItem('arabbika_ref');
+if (!userRef) {
+  // Generate a short random ID for this user (e.g., "tr-8f9a2")
+  userRef = 'tr-' + Math.random().toString(36).substring(2, 7);
+  localStorage.setItem('arabbika_ref', userRef);
+}
+
+// Check if they arrived via someone else's link
+const urlParams = new URLSearchParams(window.location.search);
+const incomingRef = urlParams.get('ref');
+if (incomingRef && incomingRef !== userRef) {
+  // They were referred by someone else!
+  track('visit_from_referral', incomingRef);
+} else {
+  track('visit_organic', userRef);
+}
+
+// Core tracking function
+function track(eventName, refCode = userRef, meta = {}) {
+  fetch('/api/event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: eventName, userRef: refCode, metadata: meta })
+  }).catch(() => {}); // Fail silently so it doesn't break the app
+}
+
+// Update the watermark with their unique referral link
+document.addEventListener('DOMContentLoaded', () => {
+  const watermark = document.getElementById('flyer-watermark');
+  if (watermark) {
+    watermark.textContent = `Priced with Arabbika Trader | arabbika-trader.onrender.com?ref=${userRef}`;
+  }
+});
+
+// --- 2. STATE & STORAGE ---
 let products = [];
 try {
   const stored = localStorage.getItem('arabbika_products');
@@ -18,12 +54,11 @@ function saveProducts() {
   localStorage.setItem('arabbika_products', JSON.stringify(products));
 }
 
-// --- NAVIGATION ---
+// --- 3. NAVIGATION ---
 function switchTab(tab) {
-  // 🔴 FIX 1: Clear edit state when leaving calculator
   if (tab === 'dashboard') {
     currentEditingId = null; 
-    resetCalculatorForm(); // Clear the form
+    resetCalculatorForm(); 
   }
 
   document.getElementById('view-dashboard').classList.add('hidden');
@@ -41,7 +76,7 @@ function switchTab(tab) {
   }
 }
 
-// --- DASHBOARD ---
+// --- 4. DASHBOARD & SALES LOG ---
 function renderDashboard() {
   const list = document.getElementById('products-list');
   const empty = document.getElementById('empty-state');
@@ -81,6 +116,8 @@ function logSale(id) {
     product.sold = (product.sold || 0) + 1;
     saveProducts();
     renderDashboard();
+    // Track the sale!
+    track('sale_logged', userRef, { productName: product.name, profit: product.sellingPrice - product.trueCost });
   }
 }
 
@@ -92,7 +129,7 @@ function deleteProduct(id) {
   }
 }
 
-// 🔴 FIX 4: Safe edit flow
+// --- 5. CALCULATOR & EDIT FLOW ---
 function loadProductForEdit(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
@@ -100,7 +137,6 @@ function loadProductForEdit(id) {
   currentEditingId = id;
   switchTab('calculator');
   
-  // Check if older products lack the inputs object
   const inputs = p.inputs || {};
 
   document.getElementById('item-name').value = p.name || '';
@@ -111,12 +147,8 @@ function loadProductForEdit(id) {
   document.getElementById('sales-week').value = inputs.weeklySales || '';
   document.getElementById('shrinkage').value = inputs.shrinkage || '5';
   document.getElementById('margin').value = inputs.desiredMargin || '50';
-  
-  // 🔴 FIX 4: Pre-fill old price with the SAVED SELLING PRICE, not their typed current price
   document.getElementById('current-price').value = p.sellingPrice || '';
   document.getElementById('weekly-volume').value = inputs.weeklyVolume || '';
-  
-  // Remove the auto-click. Let them review and click Calculate.
 }
 
 function resetCalculatorForm() {
@@ -133,7 +165,7 @@ function resetCalculatorForm() {
   document.getElementById('result-section').classList.add('hidden');
 }
 
-// --- CALCULATOR ---
+// --- 6. CALCULATE LOGIC ---
 document.getElementById('calc-btn').addEventListener('click', async () => {
   const name = document.getElementById('item-name').value;
   const wholesale = document.getElementById('wholesale-cost').value;
@@ -185,6 +217,9 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
     document.getElementById('result-section').classList.remove('hidden');
     document.getElementById('result-section').scrollIntoView({ behavior: 'smooth' });
 
+    // Track calculation event
+    track('price_calculated', userRef, { item: name, margin: inputs.desiredMargin });
+
   } catch (err) {
     alert(err.message);
   } finally {
@@ -192,7 +227,7 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
   }
 });
 
-// --- SAVE/UPDATE PRODUCT ---
+// --- 7. SAVE PRODUCT ---
 document.getElementById('save-btn').addEventListener('click', () => {
   if (!currentCalculation) return;
   
@@ -217,6 +252,8 @@ document.getElementById('save-btn').addEventListener('click', () => {
       sold: 0,
       inputs: currentCalculation.inputs
     });
+    // Track new product added
+    track('product_saved', userRef, { item: currentCalculation.inputs.itemName });
   }
 
   saveProducts();
@@ -224,7 +261,7 @@ document.getElementById('save-btn').addEventListener('click', () => {
   switchTab('dashboard');
 });
 
-// --- SHARE ---
+// --- 8. SHARE LOGIC ---
 async function shareFlyerImage(btnElement) {
   const flyerTarget = document.getElementById('flyer-canvas-target');
   const originalText = btnElement.textContent;
@@ -236,6 +273,10 @@ async function shareFlyerImage(btnElement) {
     
     canvas.toBlob(async (blob) => {
       const file = new File([blob], 'flyer.png', { type: 'image/png' });
+      
+      // Track the share event!
+      track('flyer_shared', userRef, { item: document.getElementById('flyer-item-name').textContent });
+
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], title: 'My Flyer' });
@@ -258,4 +299,5 @@ async function shareFlyerImage(btnElement) {
   }
 }
 
+// Initialize
 renderDashboard();
