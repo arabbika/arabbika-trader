@@ -4,10 +4,12 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.set('trust proxy', 1);
-app.use(express.json({ limit: '1kb' })); // Limit body size to prevent log spam
+
+// 🔴 FIX: Raise limit to 5kb to prevent HTML error pages on long product names
+app.use(express.json({ limit: '5kb' })); 
 app.use(express.static('public'));
 
-// Rate Limiter for Calculations
+// Rate Limiters
 const calcLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 50, 
@@ -15,35 +17,46 @@ const calcLimiter = rateLimit({
 });
 app.use('/api/calculate', calcLimiter);
 
-// Rate Limiter for Analytics (Prevent log flooding)
 const eventLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100, // Max 100 events per 15 mins per IP
+  max: 100, 
   message: { error: "Too many events." }
 });
 
-const ALLOWED_EVENTS = ['new_user', 'return_visit', 'price_calculated', 'product_saved', 'sale_logged', 'flyer_shared'];
+const ALLOWED_EVENTS = ['new_user', 'return_visit', 'price_calculated', 'product_saved', 'product_updated', 'sale_logged', 'flyer_shared'];
 
 app.post('/api/event', eventLimiter, (req, res) => {
   const { event, userRef, metadata } = req.body;
   
-  // Validate event name against allowlist
   if (!ALLOWED_EVENTS.includes(event)) {
     return res.status(400).json({ error: 'Invalid event type.' });
   }
 
-  // Log to Render console
+  // 🔴 FIX: Clip event data on the server to prevent log pollution
+  let safeMeta = {};
+  if (metadata && typeof metadata === 'object') {
+    Object.keys(metadata).slice(0, 4).forEach(key => {
+      const shortKey = String(key).substring(0, 15);
+      const val = metadata[key];
+      if (typeof val === 'number' || typeof val === 'string') {
+        safeMeta[shortKey] = String(val).substring(0, 30); // Cap value length
+      }
+    });
+  }
+
+  // Cap userRef length
+  const safeRef = String(userRef || 'organic').substring(0, 25);
+
   console.log(JSON.stringify({
     timestamp: new Date().toISOString(),
     event: event,
-    userRef: userRef || 'organic',
-    metadata: metadata || {}
+    userRef: safeRef,
+    metadata: safeMeta
   }));
 
   res.status(200).json({ success: true });
 });
 
-// --- CALCULATOR ENDPOINT ---
 app.post('/api/calculate', async (req, res) => {
   try {
     let { 
@@ -68,7 +81,9 @@ app.post('/api/calculate', async (req, res) => {
     weeklyVolume = parseNum(weeklyVolume); 
 
     if (wholesaleCost <= 0) return res.status(400).json({ error: "Wholesale cost must be > 0." });
-    if (desiredMargin >= 100) return res.status(400).json({ error: "Margin cannot be 100% or more." });
+    
+    // 🔴 FIX: Cap margin at 95%
+    if (desiredMargin >= 95) return res.status(400).json({ error: "Margin cannot be 95% or more." });
     if (shrinkage >= 90) shrinkage = 90;
 
     if (transportPerTrip > 0 && unitsPerTrip <= 0) {
@@ -130,6 +145,14 @@ app.post('/api/calculate', async (req, res) => {
     console.error('Calculation Error:', err);
     res.status(500).json({ error: 'Calculation failed.' });
   }
+});
+
+// 🔴 FIX: Catch-all error handler for malformed/oversized JSON requests
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request is too large.' });
+  }
+  res.status(500).json({ error: 'Something went wrong.' });
 });
 
 const PORT = process.env.PORT || 3000;
