@@ -1,17 +1,15 @@
-// --- STATE & STORAGE ---
 let products = [];
 try {
   const stored = localStorage.getItem('arabbika_products');
   products = stored ? JSON.parse(stored) : [];
   if (!Array.isArray(products)) products = [];
 } catch (e) {
-  products = []; // 🔴 FIX 5: Prevent crash on corrupt JSON
+  products = []; 
 }
 
 let currentCalculation = null;
 let currentEditingId = null;
 
-// 🔴 FIX 5: XSS protection
 function escapeHTML(str) {
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -22,6 +20,12 @@ function saveProducts() {
 
 // --- NAVIGATION ---
 function switchTab(tab) {
+  // 🔴 FIX 1: Clear edit state when leaving calculator
+  if (tab === 'dashboard') {
+    currentEditingId = null; 
+    resetCalculatorForm(); // Clear the form
+  }
+
   document.getElementById('view-dashboard').classList.add('hidden');
   document.getElementById('view-calculator').classList.add('hidden');
   document.getElementById('nav-dashboard').classList.remove('active');
@@ -50,19 +54,13 @@ function renderDashboard() {
   empty.style.display = 'none';
 
   products.forEach((p) => {
-    let alertHtml = '';
-    if (p.marginDrop) {
-      alertHtml = `<p style="color: var(--warning); font-size: 11px; margin-top: 4px;">⚠️ Margin dropped. Update costs.</p>`;
-    }
-
     const el = document.createElement('div');
     el.className = 'product-item';
     el.innerHTML = `
       <div class="product-info">
         <h3>${escapeHTML(p.name)}</h3>
-        <p>Selling: <strong>R${p.sellingPrice.toFixed(2)}</strong> | Cost: R${p.trueCost.toFixed(2)}</p>
+        <p>Selling: <strong>R${Number(p.sellingPrice).toFixed(2)}</strong> | Cost: R${Number(p.trueCost).toFixed(2)}</p>
         <p style="color: var(--accent); margin-top: 2px;">Profit: R${(p.sellingPrice - p.trueCost).toFixed(2)}</p>
-        ${alertHtml}
         <div style="margin-top: 8px; display: flex; gap: 8px;">
            <button onclick="loadProductForEdit('${p.id}')" style="width: auto; padding: 4px 8px; font-size: 11px; background: var(--surface); color: var(--text); border: 1px solid var(--border);">Edit</button>
            <button onclick="deleteProduct('${p.id}')" style="width: auto; padding: 4px 8px; font-size: 11px; background: rgba(255,71,87,0.1); color: var(--danger); border: 1px solid var(--danger);">Delete</button>
@@ -78,7 +76,6 @@ function renderDashboard() {
 }
 
 function logSale(id) {
-  // 🔴 FIX 5: Uses ID instead of index so deleting items doesn't break the buttons
   const product = products.find(p => p.id === id);
   if (product) {
     product.sold = (product.sold || 0) + 1;
@@ -95,6 +92,7 @@ function deleteProduct(id) {
   }
 }
 
+// 🔴 FIX 4: Safe edit flow
 function loadProductForEdit(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
@@ -102,17 +100,37 @@ function loadProductForEdit(id) {
   currentEditingId = id;
   switchTab('calculator');
   
-  document.getElementById('item-name').value = p.inputs.itemName;
-  document.getElementById('wholesale-cost').value = p.inputs.wholesaleCost;
-  document.getElementById('transport-trip').value = p.inputs.transportPerTrip || '';
-  document.getElementById('units-trip').value = p.inputs.unitsPerTrip || '';
-  document.getElementById('data-week').value = p.inputs.dataPerWeek || '';
-  document.getElementById('sales-week').value = p.inputs.weeklySales || '';
-  document.getElementById('shrinkage').value = p.inputs.shrinkage;
-  document.getElementById('margin').value = p.inputs.desiredMargin;
-  document.getElementById('current-price').value = p.inputs.currentPrice || '';
+  // Check if older products lack the inputs object
+  const inputs = p.inputs || {};
+
+  document.getElementById('item-name').value = p.name || '';
+  document.getElementById('wholesale-cost').value = inputs.wholesaleCost || '';
+  document.getElementById('transport-trip').value = inputs.transportPerTrip || '';
+  document.getElementById('units-trip').value = inputs.unitsPerTrip || '';
+  document.getElementById('data-week').value = inputs.dataPerWeek || '';
+  document.getElementById('sales-week').value = inputs.weeklySales || '';
+  document.getElementById('shrinkage').value = inputs.shrinkage || '5';
+  document.getElementById('margin').value = inputs.desiredMargin || '50';
   
-  document.getElementById('calc-btn').click(); // Auto-calculate on load
+  // 🔴 FIX 4: Pre-fill old price with the SAVED SELLING PRICE, not their typed current price
+  document.getElementById('current-price').value = p.sellingPrice || '';
+  document.getElementById('weekly-volume').value = inputs.weeklyVolume || '';
+  
+  // Remove the auto-click. Let them review and click Calculate.
+}
+
+function resetCalculatorForm() {
+  document.getElementById('item-name').value = '';
+  document.getElementById('wholesale-cost').value = '';
+  document.getElementById('transport-trip').value = '';
+  document.getElementById('units-trip').value = '';
+  document.getElementById('data-week').value = '';
+  document.getElementById('sales-week').value = '';
+  document.getElementById('shrinkage').value = '5';
+  document.getElementById('margin').value = '50';
+  document.getElementById('current-price').value = '';
+  document.getElementById('weekly-volume').value = '';
+  document.getElementById('result-section').classList.add('hidden');
 }
 
 // --- CALCULATOR ---
@@ -132,7 +150,7 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
     shrinkage: document.getElementById('shrinkage').value,
     desiredMargin: document.getElementById('margin').value,
     currentPrice: document.getElementById('current-price').value,
-    weeklyVolume: 10 // Hardcoded for now, can be added to UI later
+    weeklyVolume: document.getElementById('weekly-volume').value
   };
 
   const btn = document.getElementById('calc-btn');
@@ -179,51 +197,30 @@ document.getElementById('save-btn').addEventListener('click', () => {
   if (!currentCalculation) return;
   
   if (currentEditingId) {
-    // Update existing
     const idx = products.findIndex(p => p.id === currentEditingId);
     if (idx >= 0) {
-      // 🔴 FIX 3: Calculate margin drop alert
-      const oldMargin = products[idx].inputs.desiredMargin;
-      const newMargin = currentCalculation.inputs.desiredMargin;
-      const marginDrop = Number(newMargin) < Number(oldMargin); 
-      
       products[idx] = {
         ...products[idx],
         name: currentCalculation.inputs.itemName,
         sellingPrice: currentCalculation.result.sellingPrice,
         trueCost: currentCalculation.result.trueCost,
-        inputs: currentCalculation.inputs,
-        marginDrop: marginDrop
+        inputs: currentCalculation.inputs
       };
     }
     currentEditingId = null;
   } else {
-    // Save new
     products.push({
-      id: Date.now().toString(), // Unique ID
+      id: Date.now().toString(),
       name: currentCalculation.inputs.itemName,
       sellingPrice: currentCalculation.result.sellingPrice,
       trueCost: currentCalculation.result.trueCost,
       sold: 0,
-      marginDrop: false,
       inputs: currentCalculation.inputs
     });
   }
 
   saveProducts();
-  
-  // 🔴 FIX 1: Reset to defaults, not empty strings
-  document.getElementById('item-name').value = '';
-  document.getElementById('wholesale-cost').value = '';
-  document.getElementById('transport-trip').value = '';
-  document.getElementById('units-trip').value = '';
-  document.getElementById('data-week').value = '';
-  document.getElementById('sales-week').value = '';
-  document.getElementById('shrinkage').value = '5';
-  document.getElementById('margin').value = '50';
-  document.getElementById('current-price').value = '';
-  document.getElementById('result-section').classList.add('hidden');
-  
+  resetCalculatorForm();
   switchTab('dashboard');
 });
 
@@ -243,7 +240,6 @@ async function shareFlyerImage(btnElement) {
         try {
           await navigator.share({ files: [file], title: 'My Flyer' });
         } catch (e) {
-          // 🔴 FIX 5: Catch user cancellation so button doesn't freeze
           console.log('Share cancelled');
         }
       } else {
@@ -262,5 +258,4 @@ async function shareFlyerImage(btnElement) {
   }
 }
 
-// Init
 renderDashboard();
