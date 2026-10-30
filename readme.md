@@ -2,7 +2,7 @@
 
 **An AI-powered pricing engine and WhatsApp message generator for informal traders in emerging markets.**
 
-[Live Demo](https://arabbika-trader.onrender.com/) | [Portfolio](https://portfolio.ashanar-elance.workers.dev/)
+[Live Demo](https://arabbika-trader.onrender.com/)
 
 ## 📖 Overview
 
