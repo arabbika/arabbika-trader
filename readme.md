@@ -8,7 +8,7 @@
 
 Informal traders and micro-merchants (selling on WhatsApp, Facebook Marketplace, or at the taxi rank) often sell at a loss because they forget to factor in transport, data, and shrinkage (broken/lost stock). 
 
-Arabbika Trader calculates your **true cost**, tells you exactly what to charge to hit your profit margin, and uses AI to generate a professional, copy-paste WhatsApp flyer for your products.
+Arabbika Trader calculates your **true cost**, tells you exactly what to charge to hit your profit margin, and uses AI to generate a professional, copy-paste WhatsApp message for your products.
 
 ## ✨ Features
 
