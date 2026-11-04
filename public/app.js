@@ -1,11 +1,9 @@
-// --- 1. IDENTITY & ATTRIBUTION ---
-let userRef = localStorage.getItem('arabbika_user_id');
-if (!userRef) {
-  userRef = 'usr-' + Math.random().toString(36).substring(2, 8);
-  localStorage.setItem('arabbika_user_id', userRef);
+function switchTab(tabId) {
+  // Since we only have one tab right now, this just handles the active state
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  event.currentTarget.classList.add('active');
 }
 
-// --- 2. TOAST HELPER ---
 function showToast(message) {
   const toast = document.getElementById('toast-container');
   document.getElementById('toast-message').textContent = message;
@@ -13,7 +11,7 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// --- 3. SAVE & LOAD DATA ---
+// Save & Load Data
 const inputs = ['item-name', 'wholesale-cost', 'transport-trip', 'units-trip', 'data-week', 'sales-week', 'shrinkage', 'margin', 'current-price', 'weekly-volume', 'flyer-theme'];
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -29,7 +27,7 @@ inputs.forEach(id => {
   });
 });
 
-// --- 4. CALCULATE LOGIC ---
+// Calculate Logic
 document.getElementById('calc-btn').addEventListener('click', async () => {
   const itemName = document.getElementById('item-name').value;
   const wholesaleCost = document.getElementById('wholesale-cost').value;
@@ -39,15 +37,6 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
   const btn = document.getElementById('calc-btn');
   btn.disabled = true; 
   btn.textContent = 'Calculating...';
-
-  // SKELETON LOADER
-  const resultBox = document.getElementById('result-box');
-  const priceTag = document.getElementById('res-selling-price');
-  const originalPrice = priceTag.textContent;
-  
-  resultBox.style.display = 'block';
-  priceTag.textContent = 'R ---.--';
-  priceTag.classList.add('skeleton');
 
   const payload = {
     itemName,
@@ -72,11 +61,8 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    // Remove Skeleton
-    priceTag.classList.remove('skeleton');
-    priceTag.textContent = `R${data.sellingPrice}`;
-
-    // Populate Flyer
+    // Populate Results
+    document.getElementById('res-selling-price').textContent = `R${data.sellingPrice}`;
     document.getElementById('flyer-item-name').textContent = itemName;
     document.getElementById('flyer-single-price').textContent = `R${data.sellingPrice}`;
     document.getElementById('flyer-bulk-price').textContent = `Bulk (3+): R${data.bulkPrice} each`;
@@ -96,12 +82,13 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
       alertBox.style.display = 'none';
     }
 
-    document.getElementById('result-box').scrollIntoView({ behavior: 'smooth', block: 'end' });
+    // Show Result, hide empty state
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('result-box').style.display = 'block';
+
     showToast('Price calculated!');
 
   } catch (err) {
-    priceTag.classList.remove('skeleton');
-    priceTag.textContent = originalPrice;
     showToast(err.message);
   } finally {
     btn.disabled = false; 
@@ -109,14 +96,12 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
   }
 });
 
-// --- 5. SHARE LOGIC ---
-async function shareFlyerImage() {
+// Share Flyer Logic
+async function shareFlyerImage(btnElement) {
   const flyerTarget = document.getElementById('flyer-canvas-target');
-  const btn = document.querySelector('.copy-btn');
-  const originalText = btn.innerHTML;
-  
-  btn.innerHTML = 'Generating Image...';
-  btn.disabled = true;
+  const originalText = btnElement.textContent;
+  btnElement.textContent = 'Generating...';
+  btnElement.disabled = true;
 
   try {
     const canvas = await html2canvas(flyerTarget, { backgroundColor: '#000', scale: 2 });
@@ -136,12 +121,12 @@ async function shareFlyerImage() {
         showToast('Image downloaded!');
       }
       
-      btn.innerHTML = originalText;
-      btn.disabled = false;
+      btnElement.textContent = originalText;
+      btnElement.disabled = false;
     });
   } catch (err) {
     showToast('Failed to generate image.');
-    btn.innerHTML = originalText;
-    btn.disabled = false;
+    btnElement.textContent = originalText;
+    btnElement.disabled = false;
   }
 }
