@@ -1,7 +1,20 @@
+let products = JSON.parse(localStorage.getItem('arabbika_products')) || [];
+let currentCalculation = null;
+
 function switchTab(tabId) {
-  // Since we only have one tab right now, this just handles the active state
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  
+  document.getElementById(tabId + '-tab').style.display = 'block';
+  document.getElementById('nav-' + tabId).classList.add('active');
+
+  const title = document.getElementById('page-title');
+  if (tabId === 'calculator') {
+    title.textContent = 'Price Calculator';
+  } else if (tabId === 'products') {
+    title.textContent = 'My Inventory';
+    renderProducts();
+  }
 }
 
 function showToast(message) {
@@ -11,7 +24,56 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// Save & Load Data
+// --- PRODUCTS DASHBOARD ---
+function renderProducts() {
+  const grid = document.getElementById('products-list');
+  const empty = document.getElementById('empty-products');
+  grid.innerHTML = '';
+
+  if (products.length === 0) {
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+
+  products.forEach((p, index) => {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.innerHTML = `
+      <div class="product-header">
+        <h3>${escapeHTML(p.name)}</h3>
+        <span class="sold-badge">Sold: ${p.sold || 0}</span>
+      </div>
+      <div>
+        <p style="font-size: 24px; font-weight: 800; color: white;">R${p.sellingPrice.toFixed(2)}</p>
+        <p style="font-size: 12px; color: var(--muted);">True Cost: R${p.trueCost.toFixed(2)}</p>
+        <p class="product-profit" style="font-size: 13px; margin-top: 4px;">Profit/unit: R${(p.sellingPrice - p.trueCost).toFixed(2)}</p>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 12px;">
+        <button onclick="logSale(${index})" class="btn-primary" style="flex: 1; padding: 8px; font-size: 13px;">+1 Sale</button>
+        <button onclick="deleteProduct(${index})" class="btn-secondary" style="padding: 8px 12px; color: var(--danger); border-color: rgba(255, 71, 87, 0.2);">×</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function logSale(index) {
+  products[index].sold = (products[index].sold || 0) + 1;
+  localStorage.setItem('arabbika_products', JSON.stringify(products));
+  renderProducts();
+  showToast('Sale logged!');
+}
+
+function deleteProduct(index) {
+  if (confirm('Remove this product?')) {
+    products.splice(index, 1);
+    localStorage.setItem('arabbika_products', JSON.stringify(products));
+    renderProducts();
+  }
+}
+
+// --- CALCULATOR LOGIC ---
 const inputs = ['item-name', 'wholesale-cost', 'transport-trip', 'units-trip', 'data-week', 'sales-week', 'shrinkage', 'margin', 'current-price', 'weekly-volume', 'flyer-theme'];
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -27,7 +89,6 @@ inputs.forEach(id => {
   });
 });
 
-// Calculate Logic
 document.getElementById('calc-btn').addEventListener('click', async () => {
   const itemName = document.getElementById('item-name').value;
   const wholesaleCost = document.getElementById('wholesale-cost').value;
@@ -61,6 +122,14 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
+    // Save calculation state for the "Save Product" button
+    currentCalculation = {
+      name: itemName,
+      sellingPrice: Number(data.sellingPrice),
+      trueCost: Number(data.trueCost),
+      sold: 0
+    };
+
     // Populate Results
     document.getElementById('res-selling-price').textContent = `R${data.sellingPrice}`;
     document.getElementById('flyer-item-name').textContent = itemName;
@@ -72,7 +141,6 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
     else if(payload.theme === 'festive') titleEl.textContent = "🎄 FESTIVE SPECIAL 🎄";
     else titleEl.textContent = "✦ PREMIUM STOCK ✦";
 
-    // Alert Box
     const alertBox = document.getElementById('profit-leak-box');
     const alertText = document.getElementById('profit-leak-text');
     if (data.alertType !== 'none') {
@@ -82,9 +150,9 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
       alertBox.style.display = 'none';
     }
 
-    // Show Result, hide empty state
     document.getElementById('empty-state').style.display = 'none';
     document.getElementById('result-box').style.display = 'block';
+    document.getElementById('save-product-btn').style.display = 'block';
 
     showToast('Price calculated!');
 
@@ -96,7 +164,15 @@ document.getElementById('calc-btn').addEventListener('click', async () => {
   }
 });
 
-// Share Flyer Logic
+document.getElementById('save-product-btn').addEventListener('click', () => {
+  if (!currentCalculation) return;
+  products.push(currentCalculation);
+  localStorage.setItem('arabbika_products', JSON.stringify(products));
+  showToast('Saved to My Products!');
+  switchTab('products');
+});
+
+// --- SHARE FLYER ---
 async function shareFlyerImage(btnElement) {
   const flyerTarget = document.getElementById('flyer-canvas-target');
   const originalText = btnElement.textContent;
@@ -129,4 +205,8 @@ async function shareFlyerImage(btnElement) {
     btnElement.textContent = originalText;
     btnElement.disabled = false;
   }
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
