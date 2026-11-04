@@ -18,16 +18,19 @@
       </div>
       
       <nav class="nav-menu">
-        <button class="nav-item active" onclick="switchTab('calculator')">
+        <button class="nav-item" onclick="switchTab('products')" id="nav-products">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          My Products
+        </button>
+        <button class="nav-item active" onclick="switchTab('calculator')" id="nav-calculator">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="16" y1="18" x2="16.01" y2="18"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="8" y1="18" x2="8.01" y2="18"></line></svg>
           Calculator
         </button>
-        <!-- We will add the products tab later -->
       </nav>
 
       <div class="sidebar-bottom">
         <div class="user-profile">
-          <div class="avatar" style="background: var(--accent); color: #000;">T</div>
+          <div class="avatar">T</div>
           <div>
             <p style="font-size: 13px; font-weight: 600; color: white;">Trader Admin</p>
             <p style="font-size: 11px; color: var(--muted);">Free Plan</p>
@@ -45,119 +48,135 @@
 
       <!-- WORKSPACE -->
       <div class="workspace">
-        <div class="layout-grid">
-          
-          <!-- Left Column: Input Form -->
-          <div class="col-left">
-            <div class="card">
-              <div class="input-group">
-                <label>What are you selling?</label>
-                <input type="text" id="item-name" placeholder="e.g., Hair Extensions, Sneakers" maxlength="60">
-              </div>
-
-              <h3 class="section-title">Cost Breakdown</h3>
-              <div class="input-group">
-                <label>Wholesale Cost per Unit (R)</label>
-                <input type="number" id="wholesale-cost" placeholder="e.g., 50" min="1">
-              </div>
-
-              <div class="grid-2">
-                <div class="input-group">
-                  <label>Transport / Trip (R)</label>
-                  <input type="number" id="transport-trip" placeholder="e.g., 60" min="0">
-                </div>
-                <div class="input-group">
-                  <label>Units / Trip</label>
-                  <input type="number" id="units-trip" placeholder="e.g., 10" min="1">
-                </div>
-              </div>
-
-              <div class="grid-2">
-                <div class="input-group">
-                  <label>Data/Airtime weekly (R)</label>
-                  <input type="number" id="data-week" placeholder="e.g., 50" min="0">
-                </div>
-                <div class="input-group">
-                  <label>Sales per week</label>
-                  <input type="number" id="sales-week" placeholder="e.g., 20" min="1">
-                </div>
-              </div>
-
-              <h3 class="section-title">Profit Target</h3>
-              <div class="grid-2">
-                <div class="input-group">
-                  <label>Shrinkage / Loss (%)</label>
-                  <input type="number" id="shrinkage" placeholder="e.g., 5" value="5" min="0" max="90">
-                </div>
-                <div class="input-group">
-                  <label>Target Margin (%)</label>
-                  <input type="number" id="margin" placeholder="e.g., 50" value="50" min="1" max="94">
-                </div>
-              </div>
-
-              <h3 class="section-title">Profit Leak Check</h3>
-              <div class="grid-2">
-                <div class="input-group">
-                  <label>Current Price (R)</label>
-                  <input type="number" id="current-price" placeholder="e.g., 40" min="0">
-                </div>
-                <div class="input-group">
-                  <label>Sales per week</label>
-                  <input type="number" id="weekly-volume" placeholder="e.g., 10" min="1">
-                </div>
-              </div>
-
-              <div class="input-group" style="margin-top: 16px;">
-                <label>Flyer Theme</label>
-                <select id="flyer-theme">
-                  <option value="standard">Standard (Everyday)</option>
-                  <option value="blackfriday">Black Friday Special</option>
-                  <option value="festive">Festive Season Special</option>
-                </select>
-              </div>
-
-              <button id="calc-btn" class="btn-primary" style="margin-top: 16px; width: 100%;">Calculate & Generate Flyer</button>
-            </div>
+        
+        <!-- VIEW: PRODUCTS -->
+        <section id="products-tab" class="tab-content" style="display: none;">
+          <div id="products-list" class="products-grid"></div>
+          <div id="empty-products" class="empty-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <h3>No products saved yet</h3>
+            <p>Go to the Calculator tab to price an item and save it to your inventory.</p>
           </div>
+        </section>
 
-          <!-- Right Column: Empty State / Result -->
-          <div class="col-right">
+        <!-- VIEW: CALCULATOR -->
+        <section id="calculator-tab" class="tab-content" style="display: block;">
+          <div class="layout-grid">
             
-            <!-- Empty State -->
-            <div id="empty-state" class="empty-state">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-              <h3>Ready to price your stock?</h3>
-              <p>Fill in the details on the left to see your true profit and generate a WhatsApp flyer.</p>
-            </div>
-
-            <!-- Result Box -->
-            <div id="result-box" class="result-card" style="display: none;">
-              <div class="price-label">Recommended Selling Price</div>
-              <div id="res-selling-price" class="price-tag">R0.00</div>
-              
-              <div id="profit-leak-box" class="alert-box" style="display: none;">
-                <p id="profit-leak-text"></p>
-              </div>
-
-              <div id="flyer-canvas-target">
-                <h2 id="flyer-theme-title" class="flyer-theme">✦ PREMIUM STOCK ✦</h2>
-                <h3 id="flyer-item-name" class="flyer-title">Item Name</h3>
-                <div class="flyer-price-box">
-                  <p class="flyer-price-label">Single Item</p>
-                  <p id="flyer-single-price" class="flyer-price">R0.00</p>
+            <!-- Left Column: Input Form -->
+            <div class="col-left">
+              <div class="card">
+                <div class="input-group">
+                  <label>What are you selling?</label>
+                  <input type="text" id="item-name" placeholder="e.g., Hair Extensions, Sneakers" maxlength="60">
                 </div>
-                <p id="flyer-bulk-price" class="flyer-bulk">Bulk (3+): R0.00 each</p>
-                <p class="flyer-dm">DM to order 📍</p>
-                <p class="flyer-watermark">Priced with Arabbika Trader</p>
-              </div>
 
-              <button onclick="shareFlyerImage(this)" class="btn-primary" style="background: #25D366; color: white; margin-top: 16px; width: 100%;">
-                Share Flyer to WhatsApp
-              </button>
+                <h3 class="section-title">Cost Breakdown</h3>
+                <div class="input-group">
+                  <label>Wholesale Cost per Unit (R)</label>
+                  <input type="number" id="wholesale-cost" placeholder="e.g., 50" min="1">
+                </div>
+
+                <div class="grid-2">
+                  <div class="input-group">
+                    <label>Transport / Trip (R)</label>
+                    <input type="number" id="transport-trip" placeholder="e.g., 60" min="0">
+                  </div>
+                  <div class="input-group">
+                    <label>Units / Trip</label>
+                    <input type="number" id="units-trip" placeholder="e.g., 10" min="1">
+                  </div>
+                </div>
+
+                <div class="grid-2">
+                  <div class="input-group">
+                    <label>Data/Airtime weekly (R)</label>
+                    <input type="number" id="data-week" placeholder="e.g., 50" min="0">
+                  </div>
+                  <div class="input-group">
+                    <label>Sales per week</label>
+                    <input type="number" id="sales-week" placeholder="e.g., 20" min="1">
+                  </div>
+                </div>
+
+                <h3 class="section-title">Profit Target</h3>
+                <div class="grid-2">
+                  <div class="input-group">
+                    <label>Shrinkage / Loss (%)</label>
+                    <input type="number" id="shrinkage" placeholder="e.g., 5" value="5" min="0" max="90">
+                  </div>
+                  <div class="input-group">
+                    <label>Target Margin (%)</label>
+                    <input type="number" id="margin" placeholder="e.g., 50" value="50" min="1" max="94">
+                  </div>
+                </div>
+
+                <h3 class="section-title">Profit Leak Check</h3>
+                <div class="grid-2">
+                  <div class="input-group">
+                    <label>Current Price (R)</label>
+                    <input type="number" id="current-price" placeholder="e.g., 40" min="0">
+                  </div>
+                  <div class="input-group">
+                    <label>Sales per week</label>
+                    <input type="number" id="weekly-volume" placeholder="e.g., 10" min="1">
+                  </div>
+                </div>
+
+                <div class="input-group" style="margin-top: 16px;">
+                  <label>Flyer Theme</label>
+                  <select id="flyer-theme">
+                    <option value="standard">Standard (Everyday)</option>
+                    <option value="blackfriday">Black Friday Special</option>
+                    <option value="festive">Festive Season Special</option>
+                  </select>
+                </div>
+
+                <button id="calc-btn" class="btn-primary" style="margin-top: 16px; width: 100%;">Calculate & Generate Flyer</button>
+              </div>
             </div>
 
+            <!-- Right Column: Empty State / Result -->
+            <div class="col-right">
+              
+              <!-- Empty State -->
+              <div id="empty-state" class="empty-state">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                <h3>Ready to price your stock?</h3>
+                <p>Fill in the details on the left to see your true profit and generate a WhatsApp flyer.</p>
+              </div>
+
+              <!-- Result Box -->
+              <div id="result-box" class="result-card" style="display: none;">
+                <div class="price-label">Recommended Selling Price</div>
+                <div id="res-selling-price" class="price-tag">R0.00</div>
+                
+                <div id="profit-leak-box" class="alert-box" style="display: none;">
+                  <p id="profit-leak-text"></p>
+                </div>
+
+                <div id="flyer-canvas-target">
+                  <h2 id="flyer-theme-title" class="flyer-theme">✦ PREMIUM STOCK ✦</h2>
+                  <h3 id="flyer-item-name" class="flyer-title">Item Name</h3>
+                  <div class="flyer-price-box">
+                    <p class="flyer-price-label">Single Item</p>
+                    <p id="flyer-single-price" class="flyer-price">R0.00</p>
+                  </div>
+                  <p id="flyer-bulk-price" class="flyer-bulk">Bulk (3+): R0.00 each</p>
+                  <p class="flyer-dm">DM to order 📍</p>
+                  <p class="flyer-watermark">Priced with Arabbika Trader</p>
+                </div>
+
+                <button onclick="shareFlyerImage(this)" class="btn-primary" style="background: #25D366; color: white; margin-top: 16px; width: 100%;">
+                  Share Flyer to WhatsApp
+                </button>
+                
+                <button id="save-product-btn" class="btn-secondary" style="margin-top: 10px; width: 100%; display: none;">Save to My Products</button>
+              </div>
+
+            </div>
           </div>
-        </div>
+        </section>
       </div>
     </main>
   </div>
