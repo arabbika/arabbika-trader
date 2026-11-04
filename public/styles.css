@@ -70,7 +70,7 @@ body {
   box-shadow: 0 4px 20px -5px rgba(0,0,0,0.5);
 }
 
-.card-title, .section-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 16px; margin-top: 24px; text-transform: uppercase; letter-spacing: 0.5px; }
+.section-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 16px; margin-top: 24px; text-transform: uppercase; letter-spacing: 0.5px; }
 .section-title:first-of-type { margin-top: 0; }
 
 /* INPUTS */
@@ -87,13 +87,15 @@ body {
 /* BUTTONS */
 .btn-primary { background: var(--accent); color: #000; border: none; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
 .btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.05); }
 
 /* EMPTY STATE */
 .empty-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 60px 20px;
   background: var(--surface); border: 1px dashed var(--border); border-radius: 12px;
-  min-height: 400px;
+  min-height: 400px; width: 100%;
 }
 .empty-state svg { margin-bottom: 16px; opacity: 0.8; }
 .empty-state h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
@@ -126,6 +128,18 @@ body {
 .flyer-dm { color: #888; font-size: 12px; margin-top: 20px; }
 .flyer-watermark { color: #555; font-size: 10px; margin-top: 10px; }
 
+/* PRODUCTS GRID */
+.products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.product-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+}
+.product-header { display: flex; justify-content: space-between; align-items: start; }
+.product-header h3 { font-size: 16px; font-weight: 600; }
+.product-stats { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 4px; }
+.product-profit { color: var(--accent); font-weight: 600; }
+.sold-badge { background: rgba(0, 210, 106, 0.1); color: var(--accent); padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+
 /* TOAST */
 #toast-container { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #ffffff; color: #000000; padding: 12px 24px; border-radius: 30px; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0; transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); z-index: 1000; }
 #toast-container.show { transform: translateX(-50%) translateY(0); opacity: 1; }
@@ -143,4 +157,5 @@ body {
   .workspace { padding: 20px; }
   .top-bar { padding: 16px 20px; }
   .top-bar h1 { font-size: 20px; }
+  .products-grid { grid-template-columns: 1fr; }
 }
