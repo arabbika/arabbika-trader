@@ -34,14 +34,14 @@ function renderDashboard() {
   let hasDebts = false;
 
   products.forEach(p => {
-    // Profit from paid sales only
+    // 1. Calculate Profit (Only from sales that were marked "Paid")
     totalProfit += (p.sellingPrice - p.trueCost) * (p.soldPaid || 0);
     
-    // Stock value (remaining stock * wholesale cost)
+    // 2. Calculate Stock Value (Remaining items * Wholesale cost)
     const remainingStock = Math.max(0, (p.unitsBought || 1) - (p.sold || 0));
-    totalStockValue += remainingStock * p.wholesaleCost;
+    totalStockValue += remainingStock * (p.wholesaleCost || 0);
 
-    // Debts
+    // 3. Calculate Debts
     if (p.debts && p.debts.length > 0) {
       p.debts.forEach(debt => {
         hasDebts = true;
@@ -122,3 +122,164 @@ function renderProducts() {
 
 // --- MODAL & SALE LOGGING ---
 function logSale(index) {
+  currentSaleProductIndex = index;
+  currentPaymentStatus = 'paid'; 
+  document.getElementById('crm-modal').style.display = 'flex';
+  document.getElementById('crm-customer-name').value = '';
+  document.getElementById('crm-quantity').value = 1;
+  updatePaymentButtons();
+}
+
+function closeCrmModal() {
+  document.getElementById('crm-modal').style.display = 'none';
+  currentSaleProductIndex = null;
+}
+
+function setPaymentStatus(status) {
+  currentPaymentStatus = status;
+  updatePaymentButtons();
+}
+
+function updatePaymentButtons() {
+  const btnPaid = document.getElementById('btn-paid');
+  const btnOwing = document.getElementById('btn-owing');
+  if (currentPaymentStatus === 'paid') {
+    btnPaid.style.background = 'var(--accent)';
+    btnPaid.style.color = '#000';
+    btnOwing.style.background = 'transparent';
+    btnOwing.style.color = 'var(--text)';
+  } else {
+    btnOwing.style.background = 'var(--danger)';
+    btnOwing.style.color = '#fff';
+    btnPaid.style.background = 'transparent';
+    btnPaid.style.color = 'var(--text)';
+  }
+}
+
+function confirmSale() {
+  if (currentSaleProductIndex === null) return;
+
+  const customerName = document.getElementById('crm-customer-name').value.trim() || 'Walk-in';
+  const quantity = Number(document.getElementById('crm-quantity').value) || 1;
+  const product = products[currentSaleProductIndex];
+
+  // Update inventory
+  product.sold = (product.sold || 0) + quantity;
+
+  if (currentPaymentStatus === 'paid') {
+    product.soldPaid = (product.soldPaid || 0) + quantity;
+  } else {
+    // Add to debts
+    if (!product.debts) product.debts = [];
+    product.debts.push({
+      id: Date.now().toString(),
+      customerName: customerName,
+      quantity: quantity,
+      amount: product.sellingPrice * quantity
+    });
+  }
+
+  // Save to localStorage and update UI
+  localStorage.setItem('arabbika_products', JSON.stringify(products));
+  closeCrmModal();
+  renderProducts();
+  showToast(`${quantity} sale(s) logged!`);
+}
+
+function deleteProduct(index) {
+  if (confirm('Remove this product?')) {
+    products.splice(index, 1);
+    localStorage.setItem('arabbika_products', JSON.stringify(products));
+    renderProducts();
+  }
+}
+
+// --- DEBT REMINDER ---
+function remindDebt(debtId) {
+  const p = products.find(prod => prod.debts && prod.debts.some(d => d.id === debtId));
+  if (!p) return;
+  
+  const debt = p.debts.find(d => d.id === debtId);
+  const text = `Hi ${debt.customerName}, just a reminder that you owe R${debt.amount.toFixed(2)} for ${debt.quantity}x ${p.name}. Please let me know when you can settle this.`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+// --- CALCULATOR LOGIC ---
+document.getElementById('calc-btn').addEventListener('click', async () => {
+  const itemName = document.getElementById('item-name').value;
+  const wholesale = document.getElementById('wholesale-cost').value;
+  const unitsBought = document.getElementById('units-trip').value;
+  
+  if(!itemName || !wholesale) return showToast('Please fill in the item name and wholesale cost.');
+
+  const btn = document.getElementById('calc-btn');
+  btn.disabled = true; btn.textContent = 'Calculating...';
+
+  const payload = {
+    itemName,
+    wholesaleCost: wholesale,
+    unitsBought: unitsBought,
+    transportPerTrip: document.getElementById('transport-trip').value,
+    unitsPerTrip: unitsBought, // Use the same units for transport split
+    dataPerWeek: document.getElementById('data-week').value,
+    weeklySales: document.getElementById('sales-week').value,
+    shrinkage: document.getElementById('shrinkage').value,
+    desiredMargin: document.getElementById('margin').value,
+    currentPrice: document.getElementById('current-price').value,
+    weeklyVolume: document.getElementById('weekly-volume').value,
+    theme: document.getElementById('flyer-theme').value
+  };
+
+  try {
+    const res = await fetch('/api/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    // Store the full calculation for saving
+    currentCalculation = {
+      name: itemName,
+      sellingPrice: Number(data.sellingPrice),
+      trueCost: Number(data.trueCost),
+      wholesaleCost: Number(wholesale),
+      unitsBought: Number(unitsBought) || 1,
+      sold: 0,
+      soldPaid: 0,
+      debts: [] // Initialize empty debts array
+    };
+
+    // Update UI
+    document.getElementById('res-selling-price').textContent = `R${data.sellingPrice}`;
+    document.getElementById('flyer-item-name').textContent = itemName;
+    document.getElementById('flyer-single-price').textContent = `R${data.sellingPrice}`;
+    document.getElementById('flyer-bulk-price').textContent = `Bulk (3+): R${data.bulkPrice}`;
+    
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('result-box').style.display = 'block';
+    document.getElementById('save-product-btn').style.display = 'block';
+
+    showToast('Price calculated!');
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Calculate & Generate Flyer';
+  }
+});
+
+document.getElementById('save-product-btn').addEventListener('click', () => {
+  if (!currentCalculation) return;
+  products.push(currentCalculation);
+  localStorage.setItem('arabbika_products', JSON.stringify(products));
+  showToast('Saved to My Products!');
+  switchTab('products');
+});
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Initialize Dashboard on load
+renderDashboard();
